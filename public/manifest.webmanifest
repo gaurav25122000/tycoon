@@ -1,0 +1,10 @@
+{
+  "name": "Tycoon",
+  "short_name": "Tycoon",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#bfe0f5",
+  "theme_color": "#7fb8e8",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}
