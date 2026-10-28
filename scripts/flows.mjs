@@ -816,13 +816,20 @@ async function offline(h) {
   const srv = http.createServer((req, res) => {
     if (hang) return;
     const rel = new URL(req.url, 'http://x').pathname.slice(1) || 'index.html';
+    if (rel === 'blank') { res.writeHead(200, { 'content-type': 'text/html' }).end('<link rel="icon" href="data:,">'); return; } // a page of this origin without the game
     fs.readFile(path.join('dist', rel), (e, b) => (e ? res.writeHead(404).end() : res.writeHead(200, { 'content-type': TYPES[path.extname(rel)] }).end(b)));
   });
   await new Promise(r => srv.listen(0, r));
   const page = await open(PHONE, 'offline');
   const booted = () => page.waitForFunction(() => window.__tycoon && window.__tycoon.scene, null, { timeout: 60000 });
-  await page.goto(`http://localhost:${srv.address().port}/`);
+  const base = `http://localhost:${srv.address().port}/`;
+  // another app on the same origin (github.io) keeps its cache; an older copy of this game goes
+  await page.goto(base + 'blank');
+  await page.evaluate(() => Promise.all([caches.open('other-app'), caches.open('tycoon-old')]));
+  await page.goto(base);
   await page.waitForFunction(() => navigator.serviceWorker.controller && window.__tycoon && window.__tycoon.scene, null, { timeout: 60000 });
+  const names = await page.evaluate(() => caches.keys());
+  expect(names.includes('other-app') && !names.includes('tycoon-old'), `the wrong caches were cleared: ${names}`);
   const kept = await page.evaluate(async () => { const k = (await caches.keys()).find(n => n.startsWith('tycoon-')); return (await (await caches.open(k)).keys()).map(r => new URL(r.url).pathname); });
   console.log('kept on the device', kept);
   expect(kept.includes('/') && kept.includes('/icon.png') && kept.includes('/manifest.webmanifest') && ['.js', '.css'].every(x => kept.some(f => f.endsWith(x))) && kept.filter(f => f.endsWith('.woff2')).length === 3, 'the device does not keep every file of the game');
